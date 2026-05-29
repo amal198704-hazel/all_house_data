@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Beneficiary Search</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:#f5f5f5;
+    padding:15px;
+}
+
+h2{
+    margin-bottom:15px;
+    text-align:center;
+}
+
+#searchBox{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    font-size:16px;
+    margin-bottom:15px;
+    box-shadow:0 2px 6px rgba(0,0,0,.1);
+}
+
+#status{
+    margin-bottom:15px;
+    color:#666;
+    font-size:14px;
+}
+
+.card{
+    background:white;
+    border-radius:12px;
+    padding:15px;
+    margin-bottom:12px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+
+.card h3{
+    color:#1565c0;
+    margin-bottom:8px;
+}
+
+.field{
+    margin:4px 0;
+    font-size:14px;
+}
+
+.label{
+    font-weight:bold;
+}
+
+.pagination{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:10px;
+    margin-top:20px;
+}
+
+button{
+    padding:10px 15px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+}
+
+button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+}
+
+#pageInfo{
+    font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+
+<h2>Beneficiary Search</h2>
+
+<input
+type="text"
+id="searchBox"
+placeholder="Search Name, House Name or Address">
+
+<div id="status"></div>
+
+<div id="cardContainer"></div>
+
+<div class="pagination">
+
+<button id="prevBtn">
+Previous
+</button>
+
+<span id="pageInfo"></span>
+
+<button id="nextBtn">
+Next
+</button>
+
+</div>
+
+<script>
+
+const WEB_APP_URL =
+"https://script.google.com/macros/s/AKfycbztYgsWDhlVbVIi2KgUFWQ2F79nq0k5Z4HT59v2fCUQYLKwWilQHORlMjc6SNXUnRDjwg/exec";
+
+let allData = [];
+let filteredData = [];
+
+let currentPage = 1;
+const recordsPerPage = 20;
+
+const cardContainer =
+document.getElementById("cardContainer");
+
+const pageInfo =
+document.getElementById("pageInfo");
+
+const statusDiv =
+document.getElementById("status");
+
+
+// ----------------------
+// Load Data
+// ----------------------
+
+async function loadData(){
+
+    const saved =
+    localStorage.getItem(
+        "beneficiaryData"
+    );
+
+    if(saved){
+
+        allData =
+        JSON.parse(saved);
+
+    }else{
+
+        statusDiv.textContent =
+        "Downloading data...";
+
+        const res =
+        await fetch(WEB_APP_URL);
+
+        allData =
+        await res.json();
+
+        localStorage.setItem(
+            "beneficiaryData",
+            JSON.stringify(allData)
+        );
+    }
+
+    filteredData = allData;
+
+    statusDiv.textContent =
+    `${allData.length} records loaded`;
+
+    renderPage();
+
+}
+
+
+// ----------------------
+// Render Cards
+// ----------------------
+
+function renderPage(){
+
+    cardContainer.innerHTML = "";
+
+    const start =
+    (currentPage - 1) *
+    recordsPerPage;
+
+    const end =
+    start +
+    recordsPerPage;
+
+    const pageData =
+    filteredData.slice(start,end);
+
+    pageData.forEach(row=>{
+
+        const card =
+        document.createElement("div");
+
+        card.className =
+        "card";
+
+        card.innerHTML = `
+
+        <h3>${row.name}</h3>
+
+        <div class="field">
+        <span class="label">
+        Ward:
+        </span>
+        ${row.ward}
+        </div>
+
+        <div class="field">
+        <span class="label">
+        ID:
+        </span>
+        ${row.id}
+        </div>
+
+        <div class="field">
+        <span class="label">
+        House:
+        </span>
+        ${row.house}
+        </div>
+
+        <div class="field">
+        <span class="label">
+        Address:
+        </span>
+        ${row.address}
+        </div>
+
+        `;
+
+        cardContainer
+        .appendChild(card);
+
+    });
+
+    updatePagination();
+
+}
+
+
+// ----------------------
+// Pagination
+// ----------------------
+
+function updatePagination(){
+
+    const totalPages =
+    Math.ceil(
+        filteredData.length /
+        recordsPerPage
+    );
+
+    pageInfo.textContent =
+    `${currentPage} / ${totalPages}`;
+
+    prevBtn.disabled =
+    currentPage === 1;
+
+    nextBtn.disabled =
+    currentPage === totalPages;
+
+}
+
+
+prevBtn.addEventListener(
+"click",
+()=>{
+
+    if(currentPage > 1){
+
+        currentPage--;
+
+        renderPage();
+
+        window.scrollTo({
+            top:0,
+            behavior:"smooth"
+        });
+
+    }
+
+});
+
+
+nextBtn.addEventListener(
+"click",
+()=>{
+
+    const totalPages =
+    Math.ceil(
+        filteredData.length /
+        recordsPerPage
+    );
+
+    if(currentPage < totalPages){
+
+        currentPage++;
+
+        renderPage();
+
+        window.scrollTo({
+            top:0,
+            behavior:"smooth"
+        });
+
+    }
+
+});
+
+
+// ----------------------
+// Search
+// ----------------------
+
+searchBox.addEventListener(
+"input",
+function(){
+
+    const search =
+    this.value
+    .trim()
+    .toLowerCase();
+
+    if(search === ""){
+
+        filteredData =
+        allData;
+
+    }else{
+
+        filteredData =
+        allData.filter(row=>
+
+            String(row.name)
+            .toLowerCase()
+            .includes(search)
+
+            ||
+
+            String(row.house)
+            .toLowerCase()
+            .includes(search)
+
+            ||
+
+            String(row.address)
+            .toLowerCase()
+            .includes(search)
+
+        );
+
+    }
+
+    currentPage = 1;
+
+    statusDiv.textContent =
+    `${filteredData.length} result(s) found`;
+
+    renderPage();
+
+});
+
+
+loadData();
+
+</script>
+
+</body>
+</html>
